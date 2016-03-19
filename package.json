@@ -1,0 +1,28 @@
+{
+  "name": "instantclick2",
+  "version": "1.0.1",
+  "description": "Modified version of InstantClick with latest bug fixes + tweaks",
+  "main": "src/instantclick.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robgraeber/instantclick2.git"
+  },
+  "keywords": [
+    "instant",
+    "click",
+    "pjax",
+    "spa"
+  ],
+  "author": "Rob Graeber",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/robgraeber/instantclick2/issues"
+  },
+  "homepage": "https://github.com/robgraeber/instantclick2#readme"
+}

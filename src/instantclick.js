@@ -8,6 +8,8 @@ var instantClick
     , $urlToPreload
     , $preloadTimer
     , $lastTouchTimestamp
+    , $preloadCacheTimeLimit = 30000 //caches preloaded page for 30 seconds
+    , $lastPreloadTimeDict = {}
 
   // Preloading-related variables
     , $history = {}
@@ -23,6 +25,7 @@ var instantClick
 
   // Variables defined by public functions
     , $preloadOnMousedown
+    , $cacheBrowserBackBtn = true
     , $delayBeforePreload
     , $eventsCallbacks = {
         fetch: [],
@@ -111,10 +114,10 @@ var instantClick
     /* We cannot just use `document.body = doc.body`, it causes Safari (tested
        5.1, 6.0 and Mobile 7.0) to execute script tags directly.
     */
-
     if (newUrl) {
-      history.pushState(null, null, newUrl)
-
+      if (window.location.href !== newUrl){
+          history.pushState(null, null, newUrl)
+      }
       var hashIndex = newUrl.indexOf('#')
         , hashElem = hashIndex > -1
                      && document.getElementById(newUrl.substr(hashIndex + 1))
@@ -149,6 +152,7 @@ var instantClick
       document.title = title
     }
 
+    $lastPreloadTimeDict = {};
     instantanize()
     if (pop) {
       triggerPageEvent('restore')
@@ -252,8 +256,12 @@ var instantClick
     if (!$isPreloading || $isWaitingForCompletion) {
       return
     }
+    if ($xhr.readyState > 1 && $xhr.readyState < 4) {
+      $lastPreloadTimeDict = {};
+    }
     $xhr.abort()
     setPreloadingAsHalted()
+    
   }
 
   function readystatechangeListener() {
@@ -321,6 +329,10 @@ var instantClick
   }
 
   function popstateListener() {
+    if (!$cacheBrowserBackBtn) {
+      location.href = location.href;
+      return;
+    }
     var loc = removeHash(location.href)
     if (loc == $currentLocationWithoutHash) {
       return
@@ -403,6 +415,7 @@ var instantClick
 
       return
     }
+
     if ($preloadTimer) {
       clearTimeout($preloadTimer)
       $preloadTimer = false
@@ -411,7 +424,7 @@ var instantClick
     if (!url) {
       url = $urlToPreload
     }
-
+    
     if ($isPreloading && (url == $url || $isWaitingForCompletion)) {
       return
     }
@@ -419,6 +432,16 @@ var instantClick
     $isWaitingForCompletion = false
 
     $url = url
+
+    //prevent preloading the same page twice
+    if ($lastPreloadTimeDict[url] && $lastPreloadTimeDict[url] + $preloadCacheTimeLimit > new Date().getTime()) {
+      return;
+    } else {
+      //clears the dict, since we only support preloading 1 page at a time
+      $lastPreloadTimeDict = {};
+      $lastPreloadTimeDict[url] = new Date().getTime();
+    }
+
     $body = false
     $mustRedirect = false
     $timing = {
@@ -525,7 +548,19 @@ var instantClick
      Because of this mess, the only whitelisted browser on Android is Chrome.
   */
 
-  function init(preloadingMode) {
+  function init(options) {
+    var preloadingMode;
+
+    if (typeof options !== 'object') {
+      //legacy parameters
+      preloadingMode = options;
+    } else {
+      preloadingMode = options.preloadingMode;
+      if (options.cacheBrowserBackBtn !== undefined) {
+        $cacheBrowserBackBtn = options.cacheBrowserBackBtn;
+      }
+    }
+
     if ($currentLocationWithoutHash) {
       /* Already initialized */
       return
@@ -588,3 +623,7 @@ var instantClick
   }
 
 }(document, location, navigator.userAgent);
+
+if (typeof module === 'object' && typeof module.exports === 'object') {
+    module.exports = InstantClick;
+}
