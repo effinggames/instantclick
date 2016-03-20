@@ -8,8 +8,9 @@ var instantClick
     , $urlToPreload
     , $preloadTimer
     , $lastTouchTimestamp
-    , $preloadCacheTimeLimit = 30000 //caches preloaded page for 30 seconds
-    , $lastPreloadTimeDict = {}
+    , $preloadCacheTimeLimit = 30000 //how long to cache preloaded pages for
+    , $preloadTimeDict = {} //dict of last time a url was preloaded
+    , $xhrDict = {} //cache of preloaded xhr objects
 
   // Preloading-related variables
     , $history = {}
@@ -25,7 +26,6 @@ var instantClick
 
   // Variables defined by public functions
     , $preloadOnMousedown
-    , $cacheBrowserBackBtn = true
     , $delayBeforePreload
     , $eventsCallbacks = {
         fetch: [],
@@ -115,7 +115,7 @@ var instantClick
        5.1, 6.0 and Mobile 7.0) to execute script tags directly.
     */
     if (newUrl) {
-      if (window.location.href !== newUrl){
+      if (location.href !== newUrl){
           history.pushState(null, null, newUrl)
       }
       var hashIndex = newUrl.indexOf('#')
@@ -152,7 +152,6 @@ var instantClick
       document.title = title
     }
 
-    $lastPreloadTimeDict = {};
     instantanize()
     if (pop) {
       triggerPageEvent('restore')
@@ -256,28 +255,45 @@ var instantClick
     if (!$isPreloading || $isWaitingForCompletion) {
       return
     }
-    if ($xhr.readyState > 1 && $xhr.readyState < 4) {
-      $lastPreloadTimeDict = {};
-    }
+    
     $xhr.abort()
     setPreloadingAsHalted()
-    
   }
 
-  function readystatechangeListener() {
-    if ($xhr.readyState < 4) {
+  function cloneXhr(xhr) {
+    var clone = {};
+    var responseHeader = xhr.getResponseHeader('Content-Type')
+
+    clone.isFromCache = true; //variable to identify cached Xhr
+    clone.readyState = xhr.readyState;
+    clone.status = xhr.status;
+    clone.responseText = xhr.responseText;
+    clone.getResponseHeader = function(arg) {
+      return responseHeader;
+    }
+
+    return clone;
+  }
+
+  function readystatechangeListener(xhr) {
+    if (xhr.readyState < 4) {
       return
     }
-    if ($xhr.status == 0) {
+    if (xhr.status == 0) {
       /* Request aborted */
       return
     }
 
     $timing.ready = +new Date - $timing.start
 
-    if ($xhr.getResponseHeader('Content-Type').match(/\/(x|ht|xht)ml/)) {
+    if (!xhr.isFromCache) {
+      $xhrDict[$url] = cloneXhr(xhr);
+      $preloadTimeDict[$url] = new Date().getTime();
+    }
+    
+    if (xhr.getResponseHeader('Content-Type').match(/\/(x|ht|xht)ml/)) {
       var doc = document.implementation.createHTMLDocument('')
-      doc.documentElement.innerHTML = removeNoscriptTags($xhr.responseText)
+      doc.documentElement.innerHTML = removeNoscriptTags(xhr.responseText)
       $title = doc.title
       $body = doc.body
 
@@ -329,10 +345,6 @@ var instantClick
   }
 
   function popstateListener() {
-    if (!$cacheBrowserBackBtn) {
-      location.href = location.href;
-      return;
-    }
     var loc = removeHash(location.href)
     if (loc == $currentLocationWithoutHash) {
       return
@@ -433,23 +445,19 @@ var instantClick
 
     $url = url
 
-    //prevent preloading the same page twice
-    if ($lastPreloadTimeDict[url] && $lastPreloadTimeDict[url] + $preloadCacheTimeLimit > new Date().getTime()) {
-      return;
-    } else {
-      //clears the dict, since we only support preloading 1 page at a time
-      $lastPreloadTimeDict = {};
-      $lastPreloadTimeDict[url] = new Date().getTime();
-    }
-
     $body = false
     $mustRedirect = false
     $timing = {
       start: +new Date
     }
     triggerPageEvent('fetch')
-    $xhr.open('GET', url)
-    $xhr.send()
+
+    if ($xhrDict[$url] && $preloadTimeDict[$url] + $preloadCacheTimeLimit > new Date().getTime()) {
+      readystatechangeListener($xhrDict[$url])
+    } else {
+      $xhr.open('GET', url)
+      $xhr.send()
+    }
   }
 
   function display(url) {
@@ -474,7 +482,6 @@ var instantClick
          and Return), and possibly in other non-mainstream ways to navigate
          a website.
       */
-
       if ($preloadTimer && $url && $url != url) {
         /* Happens when the user clicks on a link before preloading
            kicks in while another link is already preloading.
@@ -555,9 +562,10 @@ var instantClick
       //legacy parameters
       preloadingMode = options;
     } else {
-      preloadingMode = options.preloadingMode;
-      if (options.cacheBrowserBackBtn !== undefined) {
-        $cacheBrowserBackBtn = options.cacheBrowserBackBtn;
+      preloadingMode = options.preloadingMode || 0;
+
+      if (options.preloadCacheTimeLimit !== undefined) {
+        $preloadCacheTimeLimit = options.preloadCacheTimeLimit;
       }
     }
 
@@ -599,7 +607,9 @@ var instantClick
     }
 
     $xhr = new XMLHttpRequest()
-    $xhr.addEventListener('readystatechange', readystatechangeListener)
+    $xhr.addEventListener('readystatechange', function() {
+      readystatechangeListener($xhr);
+    })
 
     instantanize(true)
 

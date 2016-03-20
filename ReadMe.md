@@ -1,8 +1,7 @@
 # [InstantClick](http://instantclick.io/)
 
 Modified version of InstantClick with latest bug fixes + tweaks. Changelog:
-- Option to not cache the browser back button.
-- Basic preload caching, to save on unnecessary fetches.
+- Preload caching, saves on unnecessary fetches by only loading pages once.
 - Fix history bug when clicking on the same link multiple times.
 
 ####Install
@@ -17,8 +16,8 @@ npm install instantclick2
 var InstantClick = require('instantclick2');
 
 InstantClick.init({
-    preloadingMode: 50,
-    cacheBrowserBackBtn: true
+    preloadingMode: 50, //Mouseover duration before preload is triggered
+    preloadCacheTimeLimit: 30000 //How long to cache preloaded pages
 });
 ```
 

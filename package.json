@@ -1,6 +1,6 @@
 {
   "name": "instantclick2",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Modified version of InstantClick with latest bug fixes + tweaks",
   "main": "src/instantclick.js",
   "directories": {
