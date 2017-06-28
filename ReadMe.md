@@ -4,13 +4,13 @@ Modified version of InstantClick with latest bug fixes + tweaks. Changelog:
 - Preload caching, saves on unnecessary fetches by only loading pages once.
 - Fix history bug when clicking on the same link multiple times.
 
-####Install
+#### Install
 
 ```
 npm install instantclick2
 ```
 
-####How to use
+#### How to use
 
 ```
 var InstantClick = require('instantclick2');
